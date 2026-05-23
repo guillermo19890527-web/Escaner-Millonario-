@@ -623,8 +623,12 @@ export default function App() {
               { k: "debil", label: "❌ Débil", color: "#ef4444" },
             ].map(t => (
               <button key={t.k} onClick={() => setFilter(t.k)} style={{
-                background: filter === t.k? `${t.color}20` : "transparent",
-                border: `1px solid ${filter === t.k? t.color : "rgba(51,65,85,0.5)"}`,
-                borderRadius: 20, padding: "5px 14px",
-                color: filter === t.k? t.color : "#475569",
-                fontSize:
+              background: filter === t.k ? `${t.color}20` : "transparent",
+              border: `1px solid ${filter === t.k ? t.color : "#334155"}`,
+              borderRadius: 20,
+              padding: "5px 14px",
+              color: filter === t.k ? t.color : "#475569",
+              fontSize: 12,
+              fontWeight: 600
+
+              
