@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { extractTickersFromImage } from '../lib/extractTickersFromImage'
+import { extractTickersFromImage } from '../lib/ocr';
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 const CAP_OPTIONS = [
