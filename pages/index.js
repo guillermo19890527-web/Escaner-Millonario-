@@ -102,32 +102,35 @@ function ImageScanner({ onAddTickers, onClose }) {
   };
 
   const scanImage = async () => {
-    if (!preview && !manualText) return;
-    setScanning(true);
-    setFound([]);
-    setSelected([]);
-
-    // Extract tickers from manual text or image filename hint
-    let tickers = [];
-    if (manualText) {
-      tickers = extractTickersFromText(manualText.toUpperCase());
-    } else {
-  const r = await fetch("/api/ocr", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ imageBase64: preview })
-  });
-  const data = await r.json();
-  tickers = data.tickers && data.tickers!== 'VACIO'? data.tickers.split(',') : [];
-    }
-    
-
-    // Validate tickers against Yahoo Finance via our API
-    const valid = [];
-    await Promise.all(tickers.map(async (t) => {
-      const q = await fetchQuote(t);
-      if (q && q.price) valid.push({ ticker: t, name: q.shortName, price: q.price });
-    }));
+  if (!preview && !manualText) return;
+  setScanning(true);
+  setFound([]);
+  setSelected([]);
+  
+  let tickers = [];
+  
+  // Extract tickers from manual text or image with IA
+  if (manualText) {
+    // Para texto manual usa regex simple
+    const matches = manualText.match(/\b[A-Z]{1,5}\b/g) || [];
+    const blacklist = new Set(["THE","AND","FOR","NY","A","I"]);
+    tickers = [...new Set(matches.filter(t => !blacklist.has(t)))];
+  } else if (preview) {
+    // Para imagen usa Groq AI directo
+    const file = await fetch(preview).then(r => r.blob());
+    tickers = await extractTickersFromImage(file);
+  }
+  
+  // Validate tickers against Yahoo Finance
+  const valid = [];
+  await Promise.all(tickers.map(async (t) => {
+    const q = await fetchQuote(t);
+    if (q && q.price) valid.push({ ticker: t, ...q });
+  }));
+  
+  setFound(valid);
+  setScanning(false);
+};
 
     setFound(valid);
     setSelected(valid.map(v => v.ticker));
