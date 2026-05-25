@@ -8,40 +8,73 @@ export const config = {
       sizeLimit: '10mb',
     },
   },
-}
+};
 
 export default async function handler(req, res) {
-  if (req.method!== "POST") return res.status(405).end();
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
 
   const { imageBase64, mediaType } = req.body;
 
+  if (!imageBase64) {
+    return res.status(400).json({ error: "No image provided" });
+  }
+
   try {
     const chatCompletion = await groq.chat.completions.create({
-      messages: [{
-        role: "user",
-        content: [
-          {
-            type: "text",
-            text: `Extrae todos los tickers bursátiles de esta imagen. Responde SOLO JSON sin backticks: {"tickers":[{"symbol":"AAPL","name":"Apple Inc."}]}. Si no hay tickers, devuelve {"tickers":[]}`
-          },
-          {
-            type: "image_url",
-            image_url: {
-              url: `data:${mediaType || "image/jpeg"};base64,${imageBase64}`
-            }
-          }
-        ]
-      }],
-      model: "llama-3.2-90b-vision-preview",
-      max_tokens: 1000,
+      model: "meta-llama/llama-4-scout-17b-16e-instruct",
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "image_url",
+              image_url: {
+                url: `data:${mediaType || "image/jpeg"};base64,${imageBase64}`,
+              },
+            },
+            {
+              type: "text",
+              text: `Analyze this image and extract ALL stock ticker symbols you can see.
+Tickers are usually 1-5 uppercase letters (like AAPL, SOFI, MARA, HOOD, RIOT, CLSK, NXL).
+They may appear in watchlists, tables, charts, articles, or screeners.
+
+Return ONLY a JSON array of ticker strings, nothing else.
+Example: ["SOFI","MARA","HOOD","RIOT","CLSK"]
+
+If you find no tickers, return: []`,
+            },
+          ],
+        },
+      ],
+      max_tokens: 500,
+      temperature: 0.1,
     });
 
-    const content = chatCompletion.choices[0]?.message?.content || '{"tickers":[]}';
-    const jsonData = JSON.parse(content);
-    res.status(200).json(jsonData);
+    const raw = chatCompletion.choices[0]?.message?.content?.trim() || "[]";
 
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: { message: err.message } });
+    // Parse safely — strip any markdown fences if present
+    const clean = raw.replace(/```json|```/g, "").trim();
+    let tickers = [];
+
+    try {
+      tickers = JSON.parse(clean);
+      if (!Array.isArray(tickers)) tickers = [];
+    } catch {
+      // Fallback: extract uppercase words from the response
+      const matches = raw.match(/\b[A-Z]{1,5}\b/g) || [];
+      const blacklist = new Set(["THE","AND","FOR","NY","A","I","AN","OF","IN","TO","IS","IF","NO"]);
+      tickers = [...new Set(matches.filter(t => !blacklist.has(t)))];
+    }
+
+    return res.status(200).json({ tickers });
+
+  } catch (error) {
+    console.error("Groq vision error:", error);
+    return res.status(500).json({
+      error: error.message || "Error processing image",
+      tickers: [],
+    });
   }
 }
