@@ -32,7 +32,7 @@ export default async function handler(req, res) {
             },
             {
               type: "text",
-              text: "Extrae todos los tickers de acciones de esta imagen. Responde ÚNICAMENTE con un array JSON válido, ejemplo: [\"NIO\",\"TSLA\"]. Sin texto adicional."
+              text: "Eres un experto en mercados financieros. Analiza esta imagen cuidadosamente y extrae TODOS los símbolos/tickers de acciones que puedas ver, aunque la imagen sea pequeña u oscura. Los tickers son palabras en MAYÚSCULAS de 1-5 letras como NIO, TSLA, AAPL, SOFI, MARA, HOOD, RIOT. Ignora palabras comunes como THE, AND, FOR, USD. Responde ÚNICAMENTE con un array JSON, ejemplo: [\"NIO\",\"TSLA\",\"AAPL\"]. Sin explicación."
             }
           ]
         }]
