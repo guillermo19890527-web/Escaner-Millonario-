@@ -103,14 +103,13 @@ function ImageScanner({ onAddTickers, onClose }) {
     if (manualText) {
       tickers = extractTickersFromText(manualText.toUpperCase());
     } else {
-  const base64 = preview.split(",")[1];
-  const r = await fetch("/api/scan-image", {
+  const r = await fetch("/api/ocr", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ image: base64 })
+    body: JSON.stringify({ imageBase64: preview })
   });
   const data = await r.json();
-  tickers = data.tickers || [];
+  tickers = data.tickers && data.tickers!== 'VACIO'? data.tickers.split(',') : [];
     }
     
 
