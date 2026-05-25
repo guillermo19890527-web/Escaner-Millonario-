@@ -103,9 +103,15 @@ function ImageScanner({ onAddTickers, onClose }) {
     if (manualText) {
       tickers = extractTickersFromText(manualText.toUpperCase());
     } else {
-  // Usar IA para extraer tickers de imagen
   const base64 = preview.split(",")[1];
   const r = await fetch("/api/scan-image", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ image: base64 })
+  });
+  const data = await r.json();
+  tickers = data.tickers || [];
+    }
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ image: base64 })
