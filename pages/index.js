@@ -285,21 +285,13 @@ function ImageScanner({ onAddTickers, onClose }) {
             Verifica que los símbolos sean correctos (ej: SOFI, HOOD, MARA).
           </div>
         )}
-      </div>
-    </div>
-  );
-}
-
-// ─── MODAL AGREGAR/EDITAR ─────────────────────────────────────────────────────
-const CAP_OPTIONS = [
-  { value: "large", label: "Large Cap >$10B" },
-  { value: "mid",   label: "Mid Cap $2B–$10B" },
-  { value: "small", label: "Small Cap $300M–$2B" },
-  { value: "micro", label: "Micro Cap <$300M" },
-  { value: "nano",  label: "Nano Cap <$50M" },
-];
-
-function Modal({ stock, onSave, onClose }) {
+      288     </div>
+289   </div>
+290   );
+291 }  // <-- AGREGA ESTA LLAVE AQUÍ PARA CERRAR TU COMPONENTE HOME
+292 
+293 
+294 function Modal({ stock, onSave, onClose }) {  // <-- Ahora Modal queda AFUERA
   const [form, setForm] = useState(stock || {
     ticker: "", nombre: "", precio: "", recomendacion: "", target: "",
     capitalizacion: "small", acciones: "", volumen: "", volatilidad: "",
