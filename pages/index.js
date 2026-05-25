@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { extractTickersFromImage } from '../lib/ocr';
+import { extractTickersFromImage } from '../lib/extractTickersFromImage';
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 const CAP_OPTIONS = [
@@ -106,8 +106,31 @@ function ImageScanner({ onAddTickers, onClose }) {
   const processFile = (file) => {
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (e) => setPreview(e.target.result);
+    reader.onload = (e) => {
+      setPreview(e.target.result);
+      // FIX: auto-scan as soon as image loads
+      scanImageFromPreview(e.target.result);
+    };
     reader.readAsDataURL(file);
+  };
+
+  // Separated so it can be called with a fresh preview value
+  const scanImageFromPreview = async (previewData) => {
+    setScanning(true);
+    setFound([]);
+    setSelected([]);
+
+    let tickers = [];
+
+    try {
+      const blob = await fetch(previewData).then(r => r.blob());
+      tickers = await extractTickersFromImage(blob);
+    } catch (err) {
+      console.error("Error OCR:", err);
+      alert("No se pudo leer la imagen. Intenta con otra foto más clara.");
+    }
+
+    await resolveAndSet(tickers);
   };
 
   const scanImage = async () => {
@@ -119,23 +142,30 @@ function ImageScanner({ onAddTickers, onClose }) {
     let tickers = [];
 
     if (manualText) {
-      // Para texto manual usa regex simple
-      const matches = manualText.match(/\b[A-Z]{1,5}\b/g) || [];
-      const blacklist = new Set(["THE","AND","FOR","NY","A","I"]);
+      // FIX: toUpperCase so lowercase input works too
+      const matches = manualText.toUpperCase().match(/\b[A-Z]{1,5}\b/g) || [];
+      const blacklist = new Set(["THE","AND","FOR","NY","A","I","AN","OF","IN","TO","IS"]);
       tickers = [...new Set(matches.filter(t => !blacklist.has(t)))];
     } else if (preview) {
-      // Para imagen usa Groq AI a través de extractTickersFromImage
-      const blob = await fetch(preview).then(r => r.blob());
-      tickers = await extractTickersFromImage(blob);
+      try {
+        const blob = await fetch(preview).then(r => r.blob());
+        tickers = await extractTickersFromImage(blob);
+      } catch (err) {
+        console.error("Error OCR:", err);
+        alert("No se pudo leer la imagen. Intenta con otra foto más clara.");
+      }
     }
 
-    // Validar tickers contra Yahoo Finance
-    const valid = [];
-    await Promise.all(tickers.map(async (t) => {
-      const q = await fetchQuote(t);
-      if (q && q.price) valid.push({ ticker: t, ...q });
-    }));
+    await resolveAndSet(tickers);
+  };
 
+  // Enrich tickers with Yahoo quote (optional — show ticker even if Yahoo is blocked)
+  const resolveAndSet = async (tickers) => {
+    const results = await Promise.all(tickers.map(async (t) => {
+      const q = await fetchQuote(t);
+      return { ticker: t, price: q?.price || null, name: q?.shortName || t, ...q };
+    }));
+    const valid = results.filter(r => r.ticker && r.ticker.length >= 2);
     setFound(valid);
     setSelected(valid.map(v => v.ticker));
     setScanning(false);
