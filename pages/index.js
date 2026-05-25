@@ -1,13 +1,30 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { extractTickersFromImage } from '../lib/ocr';
-// ─── STORAGE ─────────────────────────────────────────────────────────────────
+
+// ─── CONSTANTS ────────────────────────────────────────────────────────────────
+const CAP_OPTIONS = [
+  { value: "large",  label: "Large Cap  (>$10B)" },
+  { value: "mid",    label: "Mid Cap    ($2B–$10B)" },
+  { value: "small",  label: "Small Cap  ($300M–$2B)" },
+  { value: "micro",  label: "Micro Cap  (<$300M)" },
+];
+
+// ─── STORAGE ──────────────────────────────────────────────────────────────────
 const STORAGE_KEY = "millon-watchlist-v2";
+
 function loadWatchlist() {
-  try { const d = localStorage.getItem(STORAGE_KEY); return d ? JSON.parse(d) : []; }
-  catch { return []; }
+  try {
+    const d = localStorage.getItem(STORAGE_KEY);
+    return d ? JSON.parse(d) : [];
+  } catch {
+    return [];
+  }
 }
+
 function saveWatchlist(list) {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(list)); } catch {}
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+  } catch {}
 }
 
 // ─── QUOTE (via API route) ────────────────────────────────────────────────────
@@ -16,42 +33,30 @@ async function fetchQuote(symbol) {
     const res = await fetch(`/api/quote?symbol=${symbol}`);
     if (!res.ok) throw new Error();
     return await res.json();
-  } catch { return null; }
-}
-
-// —— TICKER EXTRACTOR FROM IMAGE WITH AI ——
-
-
-async function handleImageUpload(file, setIsScanning) {
-  if (!file) return [];
-  setIsScanning(true);
-  try {
-    const tickers = await extractTickersFromImage(file);
-    return tickers;
-  } catch (error) {
-    console.error('Error OCR:', error);
-    alert('No se pudo leer la imagen. Intenta con otra foto más clara.');
-    return [];
-  } finally {
-    setIsScanning(false);
+  } catch {
+    return null;
   }
 }
 
 // ─── FILTROS ──────────────────────────────────────────────────────────────────
 const FILTERS = [
-  { id: "precio",        label: "Precio $2–$5",       icon: "💲", check: (v) => v.precio >= 2 && v.precio <= 5 },
-  { id: "recomendacion", label: "Recom 1.0–2.0",      icon: "⭐", check: (v) => v.recomendacion >= 1 && v.recomendacion <= 2 },
-  { id: "target",        label: "Target +100%",       icon: "🎯", check: (v) => v.target >= v.precio * 2 },
-  { id: "capitalizacion",label: "Cap OK",             icon: "🏦", check: (v) => ["large","mid","small","micro"].includes(v.capitalizacion) },
-  { id: "acciones",      label: ">20M acciones",      icon: "📊", check: (v) => v.acciones >= 20 },
-  { id: "volumen",       label: "Vol >500K",          icon: "📈", check: (v) => v.volumen >= 500 },
-  { id: "volatilidad",   label: "Volatilidad >3%",    icon: "⚡", check: (v) => v.volatilidad >= 3 },
-  { id: "institucional", label: ">10% Institucional", icon: "🏛️", check: (v) => v.institucional >= 10 },
+  { id: "precio",         label: "Precio $2–$5",       icon: "💲", check: (v) => v.precio >= 2 && v.precio <= 5 },
+  { id: "recomendacion",  label: "Recom 1.0–2.0",      icon: "⭐", check: (v) => v.recomendacion >= 1 && v.recomendacion <= 2 },
+  { id: "target",         label: "Target +100%",       icon: "🎯", check: (v) => v.target >= v.precio * 2 },
+  { id: "capitalizacion", label: "Cap OK",             icon: "🏦", check: (v) => ["large","mid","small","micro"].includes(v.capitalizacion) },
+  { id: "acciones",       label: ">20M acciones",      icon: "📊", check: (v) => v.acciones >= 20 },
+  { id: "volumen",        label: "Vol >500K",          icon: "📈", check: (v) => v.volumen >= 500 },
+  { id: "volatilidad",    label: "Volatilidad >3%",    icon: "⚡", check: (v) => v.volatilidad >= 3 },
+  { id: "institucional",  label: ">10% Institucional", icon: "🏛️", check: (v) => v.institucional >= 10 },
 ];
 
 function scoreStock(s) {
   let p = 0;
-  FILTERS.forEach(f => { try { if (f.check(s)) p++; } catch {} });
+  FILTERS.forEach(f => {
+    try { if (f.check(s)) p++; } catch (e) {
+      if (process.env.NODE_ENV === "development") console.warn("scoreStock error:", f.id, e);
+    }
+  });
   return p;
 }
 
@@ -59,7 +64,7 @@ function verdictStyle(score) {
   if (score === 8) return { color: "#22c55e", label: "JOYA 💎",    glow: "#22c55e" };
   if (score >= 6)  return { color: "#84cc16", label: "FUERTE 🚀",  glow: "#84cc16" };
   if (score >= 4)  return { color: "#f59e0b", label: "REVISAR ⚠️", glow: "#f59e0b" };
-  return              { color: "#ef4444", label: "DÉBIL ❌",    glow: "#ef4444" };
+  return               { color: "#ef4444", label: "DÉBIL ❌",    glow: "#ef4444" };
 }
 
 // ─── SHARED STYLES ────────────────────────────────────────────────────────────
@@ -73,7 +78,11 @@ const inputStyle = {
 };
 
 function FieldLabel({ children }) {
-  return <div style={{ fontSize: 11, color: "#64748b", fontFamily: "monospace", letterSpacing: 1 }}>{children}</div>;
+  return (
+    <div style={{ fontSize: 11, color: "#64748b", fontFamily: "monospace", letterSpacing: 1 }}>
+      {children}
+    </div>
+  );
 }
 
 function btnSm(color) {
@@ -84,13 +93,13 @@ function btnSm(color) {
   };
 }
 
-// ─── IMAGE SCANNER MODAL ─────────────────────────────────────────────────────
+// ─── IMAGE SCANNER MODAL ──────────────────────────────────────────────────────
 function ImageScanner({ onAddTickers, onClose }) {
-  const [dragging, setDragging] = useState(false);
-  const [preview, setPreview] = useState(null);
-  const [scanning, setScanning] = useState(false);
-  const [found, setFound] = useState([]);
-  const [selected, setSelected] = useState([]);
+  const [dragging, setDragging]     = useState(false);
+  const [preview, setPreview]       = useState(null);
+  const [scanning, setScanning]     = useState(false);
+  const [found, setFound]           = useState([]);
+  const [selected, setSelected]     = useState([]);
   const [manualText, setManualText] = useState("");
   const fileRef = useRef();
 
@@ -102,35 +111,30 @@ function ImageScanner({ onAddTickers, onClose }) {
   };
 
   const scanImage = async () => {
-  if (!preview && !manualText) return;
-  setScanning(true);
-  setFound([]);
-  setSelected([]);
-  
-  let tickers = [];
-  
-  // Extract tickers from manual text or image with IA
-  if (manualText) {
-    // Para texto manual usa regex simple
-    const matches = manualText.match(/\b[A-Z]{1,5}\b/g) || [];
-    const blacklist = new Set(["THE","AND","FOR","NY","A","I"]);
-    tickers = [...new Set(matches.filter(t => !blacklist.has(t)))];
-  } else if (preview) {
-    // Para imagen usa Groq AI directo
-    const file = await fetch(preview).then(r => r.blob());
-    tickers = await extractTickersFromImage(file);
-  }
-  
-  // Validate tickers against Yahoo Finance
-  const valid = [];
-  await Promise.all(tickers.map(async (t) => {
-    const q = await fetchQuote(t);
-    if (q && q.price) valid.push({ ticker: t, ...q });
-  }));
-  
-  setFound(valid);
-  setScanning(false);
-};
+    if (!preview && !manualText) return;
+    setScanning(true);
+    setFound([]);
+    setSelected([]);
+
+    let tickers = [];
+
+    if (manualText) {
+      // Para texto manual usa regex simple
+      const matches = manualText.match(/\b[A-Z]{1,5}\b/g) || [];
+      const blacklist = new Set(["THE","AND","FOR","NY","A","I"]);
+      tickers = [...new Set(matches.filter(t => !blacklist.has(t)))];
+    } else if (preview) {
+      // Para imagen usa Groq AI a través de extractTickersFromImage
+      const blob = await fetch(preview).then(r => r.blob());
+      tickers = await extractTickersFromImage(blob);
+    }
+
+    // Validar tickers contra Yahoo Finance
+    const valid = [];
+    await Promise.all(tickers.map(async (t) => {
+      const q = await fetchQuote(t);
+      if (q && q.price) valid.push({ ticker: t, ...q });
+    }));
 
     setFound(valid);
     setSelected(valid.map(v => v.ticker));
@@ -174,7 +178,7 @@ function ImageScanner({ onAddTickers, onClose }) {
         </div>
 
         <p style={{ fontSize: 12, color: "#64748b", fontFamily: "monospace", marginBottom: 16 }}>
-          Sube una imagen con tickers (screenshot de watchlist, artículo, etc.) y pega el texto visible abajo para detectar automáticamente.
+          Sube una imagen con tickers (screenshot de watchlist, artículo, etc.) o pega el texto visible abajo para detectar automáticamente.
         </p>
 
         {/* Drop zone */}
@@ -196,12 +200,8 @@ function ImageScanner({ onAddTickers, onClose }) {
           ) : (
             <>
               <div style={{ fontSize: 36, marginBottom: 8 }}>🖼️</div>
-              <div style={{ fontSize: 13, color: "#475569", fontFamily: "monospace" }}>
-                Toca para subir imagen
-              </div>
-              <div style={{ fontSize: 11, color: "#334155", marginTop: 4 }}>
-                Screenshot de watchlist, noticias, etc.
-              </div>
+              <div style={{ fontSize: 13, color: "#475569", fontFamily: "monospace" }}>Toca para subir imagen</div>
+              <div style={{ fontSize: 11, color: "#334155", marginTop: 4 }}>Screenshot de watchlist, noticias, etc.</div>
             </>
           )}
           <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }}
@@ -246,8 +246,7 @@ function ImageScanner({ onAddTickers, onClose }) {
                     display: "flex", alignItems: "center", justifyContent: "space-between",
                     background: selected.includes(f.ticker) ? "rgba(34,197,94,0.1)" : "rgba(15,23,42,0.5)",
                     border: `1px solid ${selected.includes(f.ticker) ? "rgba(34,197,94,0.4)" : "rgba(51,65,85,0.4)"}`,
-                    borderRadius: 8, padding: "10px 14px", cursor: "pointer",
-                    transition: "all 0.2s",
+                    borderRadius: 8, padding: "10px 14px", cursor: "pointer", transition: "all 0.2s",
                   }}
                 >
                   <div>
@@ -279,19 +278,19 @@ function ImageScanner({ onAddTickers, onClose }) {
           </>
         )}
 
-        {found.length === 0 && !scanning && manualText && (
+        {found.length === 0 && !scanning && (manualText || preview) && (
           <div style={{ textAlign: "center", padding: 20, color: "#ef4444", fontFamily: "monospace", fontSize: 12 }}>
-            No se encontraron tickers válidos en Yahoo Finance.<br/>
+            No se encontraron tickers válidos en Yahoo Finance.<br />
             Verifica que los símbolos sean correctos (ej: SOFI, HOOD, MARA).
           </div>
         )}
-      288     </div>
-289   </div>
-290   );
-291 }  // <-- AGREGA ESTA LLAVE AQUÍ PARA CERRAR TU COMPONENTE HOME
-292 
-293 
-294 function Modal({ stock, onSave, onClose }) {  // <-- Ahora Modal queda AFUERA
+      </div>
+    </div>
+  );
+}
+
+// ─── MODAL ────────────────────────────────────────────────────────────────────
+function Modal({ stock, onSave, onClose }) {
   const [form, setForm] = useState(stock || {
     ticker: "", nombre: "", precio: "", recomendacion: "", target: "",
     capitalizacion: "small", acciones: "", volumen: "", volatilidad: "",
@@ -403,13 +402,15 @@ function ImageScanner({ onAddTickers, onClose }) {
             border: "1px solid rgba(100,116,139,0.3)", borderRadius: 8,
             color: "#64748b", cursor: "pointer", fontSize: 14,
           }}>Cancelar</button>
-          <button onClick={() => { if (!form.ticker) return; onSave({ ...form, id: stock?.id || Date.now() }); }}
+          <button
+            onClick={() => { if (!form.ticker) return; onSave({ ...form, id: stock?.id || Date.now() }); }}
             style={{
               flex: 2, padding: "12px",
               background: "linear-gradient(135deg, #22c55e, #16a34a)",
               border: "none", borderRadius: 8,
               color: "#0a0f1e", fontWeight: 700, cursor: "pointer", fontSize: 14,
-            }}>
+            }}
+          >
             {stock ? "Guardar Cambios" : "Agregar al Scanner"}
           </button>
         </div>
@@ -420,19 +421,23 @@ function ImageScanner({ onAddTickers, onClose }) {
 
 // ─── STOCK ROW ────────────────────────────────────────────────────────────────
 function StockRow({ stock, quote, onEdit, onDelete }) {
-  const score = scoreStock(stock);
-  const vd = verdictStyle(score);
-  const price = quote?.price ?? parseFloat(stock.precio) ?? 0;
-  const prevClose = quote?.prevClose ?? price;
-  const changePct = prevClose ? ((price - prevClose) / prevClose * 100) : 0;
-  const changeUp = changePct >= 0;
-  const volRatio = quote?.avgVolume ? (quote.volume / quote.avgVolume).toFixed(1) : null;
-  const volAlert = quote?.avgVolume && stock.alertaVol ? quote.volume >= quote.avgVolume * parseFloat(stock.alertaVol) : false;
+  const score      = scoreStock(stock);
+  const vd         = verdictStyle(score);
+  const price      = quote?.price ?? parseFloat(stock.precio) ?? 0;
+  const prevClose  = quote?.prevClose ?? price;
+  const changePct  = prevClose ? ((price - prevClose) / prevClose * 100) : 0;
+  const changeUp   = changePct >= 0;
+  const volRatio   = quote?.avgVolume ? (quote.volume / quote.avgVolume).toFixed(1) : null;
+  const volAlert   = quote?.avgVolume && stock.alertaVol
+    ? quote.volume >= quote.avgVolume * parseFloat(stock.alertaVol)
+    : false;
   const priceAlertHigh = stock.alertaAlta && price >= parseFloat(stock.alertaAlta);
   const priceAlertLow  = stock.alertaBaja && price <= parseFloat(stock.alertaBaja);
-  const isPreMarket = quote?.marketState === "PRE";
-  const prePrice = quote?.preMarketPrice;
-  const bars = Array(8).fill(0).map((_, i) => { try { return FILTERS[i].check(stock) ? 1 : 0; } catch { return 0; } });
+  const isPreMarket    = quote?.marketState === "PRE";
+  const prePrice       = quote?.preMarketPrice;
+  const bars = Array(8).fill(0).map((_, i) => {
+    try { return FILTERS[i].check(stock) ? 1 : 0; } catch { return 0; }
+  });
 
   return (
     <div style={{
@@ -450,6 +455,7 @@ function StockRow({ stock, quote, onEdit, onDelete }) {
           🔔 {volAlert ? "VOL!" : ""} {priceAlertHigh ? "↑PRECIO" : ""} {priceAlertLow ? "↓PRECIO" : ""}
         </div>
       )}
+
       <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
         <div style={{ minWidth: 80 }}>
           <div style={{ fontSize: 20, fontWeight: 700, fontFamily: "monospace", color: "#f8fafc", letterSpacing: 2 }}>{stock.ticker}</div>
@@ -457,18 +463,21 @@ function StockRow({ stock, quote, onEdit, onDelete }) {
             {stock.nombre || quote?.shortName || ""}
           </div>
         </div>
+
         <div style={{ textAlign: "right" }}>
           <div style={{ fontSize: 22, fontWeight: 700, color: "#f8fafc", fontFamily: "monospace" }}>${price.toFixed(2)}</div>
           <div style={{ fontSize: 12, color: changeUp ? "#22c55e" : "#ef4444", fontFamily: "monospace" }}>
             {changeUp ? "▲" : "▼"} {Math.abs(changePct).toFixed(2)}%
           </div>
         </div>
+
         {isPreMarket && prePrice && (
           <div style={{ background: "rgba(251,191,36,0.15)", border: "1px solid rgba(251,191,36,0.4)", borderRadius: 6, padding: "4px 10px" }}>
             <div style={{ fontSize: 9, color: "#fbbf24", fontFamily: "monospace", letterSpacing: 1 }}>PREMARKET</div>
             <div style={{ fontSize: 14, fontWeight: 700, color: "#fbbf24", fontFamily: "monospace" }}>${prePrice.toFixed(2)}</div>
           </div>
         )}
+
         <div style={{ flex: 1, minWidth: 100 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
             <span style={{ fontSize: 10, color: "#475569", fontFamily: "monospace" }}>VOL</span>
@@ -482,17 +491,27 @@ function StockRow({ stock, quote, onEdit, onDelete }) {
             <div style={{
               height: "100%", borderRadius: 3, transition: "width 0.8s ease",
               width: volRatio ? `${Math.min(parseFloat(volRatio) / 5 * 100, 100)}%` : "0%",
-              background: parseFloat(volRatio) >= 2 ? "linear-gradient(90deg,#22c55e,#16a34a)" : parseFloat(volRatio) >= 1 ? "linear-gradient(90deg,#f59e0b,#d97706)" : "#ef4444",
+              background: parseFloat(volRatio) >= 2
+                ? "linear-gradient(90deg,#22c55e,#16a34a)"
+                : parseFloat(volRatio) >= 1
+                  ? "linear-gradient(90deg,#f59e0b,#d97706)"
+                  : "#ef4444",
               boxShadow: parseFloat(volRatio) >= 2 ? "0 0 8px #22c55e" : "none",
             }} />
           </div>
-          {quote?.volume && <div style={{ fontSize: 10, color: "#334155", marginTop: 2, fontFamily: "monospace" }}>{(quote.volume / 1000).toFixed(0)}K hoy</div>}
+          {quote?.volume && (
+            <div style={{ fontSize: 10, color: "#334155", marginTop: 2, fontFamily: "monospace" }}>
+              {(quote.volume / 1000).toFixed(0)}K hoy
+            </div>
+          )}
         </div>
+
         <div style={{ background: `${vd.glow}20`, border: `1px solid ${vd.glow}50`, borderRadius: 8, padding: "6px 12px", textAlign: "center", minWidth: 60 }}>
           <div style={{ fontSize: 20, fontWeight: 700, color: vd.color, fontFamily: "monospace" }}>{score}/8</div>
           <div style={{ fontSize: 9, color: vd.color, fontFamily: "monospace", letterSpacing: 1 }}>{vd.label}</div>
         </div>
       </div>
+
       <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
         {bars.map((pass, i) => (
           <div key={i} title={FILTERS[i].label} style={{
@@ -506,11 +525,13 @@ function StockRow({ stock, quote, onEdit, onDelete }) {
           </div>
         ))}
       </div>
+
       {stock.notas && (
         <div style={{ fontSize: 11, color: "#64748b", fontStyle: "italic", borderTop: "1px solid rgba(51,65,85,0.4)", paddingTop: 8 }}>
           📝 {stock.notas}
         </div>
       )}
+
       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
         <button onClick={() => onEdit(stock)} style={btnSm("#64748b")}>✏️ Editar</button>
         <button onClick={() => onDelete(stock.id)} style={btnSm("#ef4444")}>🗑️ Borrar</button>
@@ -521,37 +542,40 @@ function StockRow({ stock, quote, onEdit, onDelete }) {
 
 // ─── MAIN ─────────────────────────────────────────────────────────────────────
 export default function Home() {
-  const [watchlist, setWatchlist] = useState([]);
-  const [quotes, setQuotes] = useState({});
-  const [loading, setLoading] = useState(true);
+  const [watchlist, setWatchlist]   = useState([]);
+  const [quotes, setQuotes]         = useState({});
+  const [loading, setLoading]       = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [modal, setModal] = useState(null);
+  const [modal, setModal]           = useState(null);
   const [showScanner, setShowScanner] = useState(false);
   const [lastUpdate, setLastUpdate] = useState(null);
-  const [filter, setFilter] = useState("all");
+  const [filter, setFilter]         = useState("all");
   const [alertsFired, setAlertsFired] = useState({});
   const intervalRef = useRef(null);
 
+  // FIX: Load from localStorage only on client side to avoid SSR issues
   useEffect(() => {
     const list = loadWatchlist();
     setWatchlist(list);
     setLoading(false);
     if (list.length > 0) fetchAllQuotes(list);
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // FIX: Always use the `list` parameter to avoid stale closure and race conditions
   const fetchAllQuotes = useCallback(async (list) => {
+    if (!list || list.length === 0) return;
     setRefreshing(true);
     const results = {};
-    const alerts = {};
-    await Promise.all((list || watchlist).map(async (s) => {
+    const alerts  = {};
+    await Promise.all(list.map(async (s) => {
       const q = await fetchQuote(s.ticker);
       if (q) {
         results[s.ticker] = q;
         const volRatio = q.avgVolume ? q.volume / q.avgVolume : 0;
         alerts[s.ticker] = {
-          vol: volRatio >= (parseFloat(s.alertaVol) || 2),
+          vol:  volRatio >= (parseFloat(s.alertaVol) || 2),
           high: s.alertaAlta && q.price >= parseFloat(s.alertaAlta),
-          low: s.alertaBaja && q.price <= parseFloat(s.alertaBaja),
+          low:  s.alertaBaja && q.price <= parseFloat(s.alertaBaja),
         };
       }
     }));
@@ -559,7 +583,7 @@ export default function Home() {
     setAlertsFired(alerts);
     setLastUpdate(new Date());
     setRefreshing(false);
-  }, [watchlist]);
+  }, []); // no deps — always receives list as argument
 
   useEffect(() => {
     if (watchlist.length === 0) return;
@@ -589,7 +613,8 @@ export default function Home() {
   // Called from ImageScanner with validated tickers
   const handleAddFromImage = (tickers) => {
     const newStocks = tickers.map(t => ({
-      id: Date.now() + Math.random(),
+      // FIX: Use crypto.randomUUID() for unique IDs without collision risk
+      id: crypto.randomUUID(),
       ticker: t.ticker,
       nombre: t.name || "",
       precio: t.price || "",
@@ -615,7 +640,9 @@ export default function Home() {
   }).sort((a, b) => scoreStock(b) - scoreStock(a));
 
   const alertCount = Object.values(alertsFired).filter(a => a.vol || a.high || a.low).length;
-  const avgScore = watchlist.length ? (watchlist.reduce((s, x) => s + scoreStock(x), 0) / watchlist.length).toFixed(1) : "–";
+  const avgScore   = watchlist.length
+    ? (watchlist.reduce((s, x) => s + scoreStock(x), 0) / watchlist.length).toFixed(1)
+    : "–";
 
   return (
     <div style={{ minHeight: "100vh", background: "#070d1a", color: "#e2e8f0", fontFamily: "'Georgia', serif", position: "relative" }}>
@@ -661,13 +688,16 @@ export default function Home() {
               <div style={{ fontSize: 18, fontWeight: 700, color: "#84cc16", fontFamily: "monospace" }}>{avgScore}</div>
               <div style={{ fontSize: 9, color: "#334155", fontFamily: "monospace" }}>SCORE</div>
             </div>
-            <button onClick={() => fetchAllQuotes(watchlist)} disabled={refreshing} style={{
-              background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.3)",
-              borderRadius: 8, padding: "7px 11px", color: "#22c55e",
-              cursor: refreshing ? "wait" : "pointer", fontSize: 14,
-              animation: refreshing ? "spin 1s linear infinite" : "none", display: "inline-block",
-            }}>⟳</button>
-            {/* Image Scanner button */}
+            <button
+              onClick={() => fetchAllQuotes(watchlist)}
+              disabled={refreshing}
+              style={{
+                background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.3)",
+                borderRadius: 8, padding: "7px 11px", color: "#22c55e",
+                cursor: refreshing ? "wait" : "pointer", fontSize: 14,
+                animation: refreshing ? "spin 1s linear infinite" : "none", display: "inline-block",
+              }}
+            >⟳</button>
             <button onClick={() => setShowScanner(true)} style={{
               background: "rgba(139,92,246,0.15)", border: "1px solid rgba(139,92,246,0.4)",
               borderRadius: 8, padding: "7px 11px", color: "#a78bfa",
@@ -736,17 +766,36 @@ export default function Home() {
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {filtered.map(s => (
-              <StockRow key={s.id} stock={s} quote={quotes[s.ticker]} alertsFired={alertsFired[s.ticker]} onEdit={setModal} onDelete={handleDelete} />
+              <StockRow
+                key={s.id}
+                stock={s}
+                quote={quotes[s.ticker]}
+                onEdit={setModal}
+                onDelete={handleDelete}
+              />
             ))}
             {filtered.length === 0 && (
-              <div style={{ textAlign: "center", padding: 40, color: "#334155", fontFamily: "monospace" }}>No hay acciones en esta categoría</div>
+              <div style={{ textAlign: "center", padding: 40, color: "#334155", fontFamily: "monospace" }}>
+                No hay acciones en esta categoría
+              </div>
             )}
           </div>
         )}
       </div>
 
-      {modal && <Modal stock={modal === "add" ? null : modal} onSave={handleSave} onClose={() => setModal(null)} />}
-      {showScanner && <ImageScanner onAddTickers={handleAddFromImage} onClose={() => setShowScanner(false)} />}
+      {modal && (
+        <Modal
+          stock={modal === "add" ? null : modal}
+          onSave={handleSave}
+          onClose={() => setModal(null)}
+        />
+      )}
+      {showScanner && (
+        <ImageScanner
+          onAddTickers={handleAddFromImage}
+          onClose={() => setShowScanner(false)}
+        />
+      )}
     </div>
   );
 }
