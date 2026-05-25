@@ -112,13 +112,7 @@ function ImageScanner({ onAddTickers, onClose }) {
   const data = await r.json();
   tickers = data.tickers || [];
     }
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ image: base64 })
-  });
-  const data = await r.json();
-  tickers = data.tickers || [];
-    }
+    
 
     // Validate tickers against Yahoo Finance via our API
     const valid = [];
