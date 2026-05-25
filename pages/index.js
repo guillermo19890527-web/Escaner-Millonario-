@@ -19,13 +19,22 @@ async function fetchQuote(symbol) {
   } catch { return null; }
 }
 
-// ─── TICKER EXTRACTOR FROM IMAGE TEXT ────────────────────────────────────────
-function extractTickersFromText(text) {
-  // Match typical US stock tickers: 1-5 uppercase letters
-  const matches = text.match(/\b[A-Z]{1,5}\b/g) || [];
-  // Filter out common non-ticker words
-  const blacklist = new Set(["THE","AND","FOR","NYSE","ETF","SEC","CEO","IPO","EPS","PE","AI","IT","US","USD","ETF","A","I"]);
-  return [...new Set(matches.filter(t => !blacklist.has(t)))];
+// —— TICKER EXTRACTOR FROM IMAGE WITH AI ——
+import { extractTickersFromImage } from '../lib/ocr';
+
+async function handleImageUpload(file, setIsScanning) {
+  if (!file) return [];
+  setIsScanning(true);
+  try {
+    const tickers = await extractTickersFromImage(file);
+    return tickers;
+  } catch (error) {
+    console.error('Error OCR:', error);
+    alert('No se pudo leer la imagen. Intenta con otra foto más clara.');
+    return [];
+  } finally {
+    setIsScanning(false);
+  }
 }
 
 // ─── FILTROS ──────────────────────────────────────────────────────────────────
