@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-
+import { extractTickersFromImage } from '../lib/ocr';
 // ─── STORAGE ─────────────────────────────────────────────────────────────────
 const STORAGE_KEY = "millon-watchlist-v2";
 function loadWatchlist() {
@@ -20,7 +20,7 @@ async function fetchQuote(symbol) {
 }
 
 // —— TICKER EXTRACTOR FROM IMAGE WITH AI ——
-import { extractTickersFromImage } from '../lib/ocr';
+
 
 async function handleImageUpload(file, setIsScanning) {
   if (!file) return [];
