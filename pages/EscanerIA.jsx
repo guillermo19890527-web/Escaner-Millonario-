@@ -144,60 +144,21 @@ export default function EscanerIA({ onAddTickers, onClose }) {
 
     try {
       const response = await fetch("/api/vision", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 1000,
-          messages: [
-            {
-              role: "user",
-              content: [
-                {
-                  type: "image",
-                  source: {
-                    type: "base64",
-                    media_type: imageFile.type || "image/jpeg",
-                    data: imageBase64,
-                  },
-                },
-                {
-                  type: "text",
-                  text: `Analiza esta imagen financiera. Extrae TODOS los tickers (símbolos bursátiles) que veas.
-Responde SOLO con JSON válido, sin texto extra, sin backticks:
-{
-  "tickers": [
-    { "symbol": "AAPL", "name": "Apple Inc." },
-    { "symbol": "NIO", "name": "NIO Inc." }
-  ]
-}
-Reglas:
-- symbol: siempre en MAYÚSCULAS, 1-5 caracteres
-- name: nombre completo de la empresa si lo reconoces, si no pon ""
-- Si no hay tickers bursátiles, devuelve { "tickers": [] }`,
-                },
-              ],
-            },
-          ],
+          imageBase64: imageBase64,
+          mediaType: imageFile.type || "image/jpeg",
         }),
       });
 
       const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Error en servidor");
 
-      if (data.error) throw new Error(data.error.message);
-
-      const text = data.content
-        .filter((b) => b.type === "text")
-        .map((b) => b.text)
-        .join("")
-        .replace(/```json|```/g, "")
-        .trim();
-
-      const parsed = JSON.parse(text);
-      const found = parsed.tickers || [];
+      const found = (data.tickers || []).map(symbol => ({ symbol, name: "" }));
 
       if (found.length === 0) {
-        setStatus({ type: "error", text: "No se detectaron tickers en la imagen. Intenta con otra captura." });
+        setStatus({ type: "error", text: "No se detectaron tickers. Intenta con otra captura." });
       } else {
         setStatus({ type: "info", text: `✅ ${found.length} ticker${found.length > 1 ? "s" : ""} detectado${found.length > 1 ? "s" : ""}` });
         setTickers(found);
