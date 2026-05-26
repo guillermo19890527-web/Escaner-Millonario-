@@ -18,52 +18,35 @@ export default async function handler(req, res) {
   }
 
   try {
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": process.env.ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 500,
-        messages: [
-          {
-            role: "user",
-            content: [
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{
+            parts: [
               {
-                type: "image",
-                source: {
-                  type: "base64",
-                  media_type: mediaType || "image/jpeg",
+                inline_data: {
+                  mime_type: mediaType || "image/jpeg",
                   data: imageBase64,
-                },
+                }
               },
               {
-                type: "text",
                 text: `Analyze this image and extract ALL stock ticker symbols you can see.
-Tickers are usually 1-5 uppercase letters (like AAPL, SOFI, MARA, HOOD, RIOT, CLSK).
-They may appear in watchlists, tables, charts, articles, or screeners.
-
-Return ONLY a JSON array of ticker strings, nothing else.
-Example: ["SOFI","MARA","HOOD","RIOT","CLSK"]
-
-If you find no tickers, return: []`,
-              },
-            ],
-          },
-        ],
-      }),
-    });
-
-    if (!response.ok) {
-      const err = await response.json();
-      throw new Error(err?.error?.message || "Claude API error");
-    }
+Tickers are 1-5 uppercase letters (AAPL, SOFI, MARA, HOOD, RIOT, CLSK).
+Return ONLY a JSON array, nothing else.
+Example: ["SOFI","MARA","HOOD","RIOT"]
+If no tickers found, return: []`
+              }
+            ]
+          }]
+        }),
+      }
+    );
 
     const data = await response.json();
-    const raw = data.content?.[0]?.text?.trim() || "[]";
+    const raw = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "[]";
     const clean = raw.replace(/```json|```/g, "").trim();
 
     let tickers = [];
@@ -79,7 +62,7 @@ If you find no tickers, return: []`,
     return res.status(200).json({ tickers });
 
   } catch (error) {
-    console.error("Claude vision error:", error);
+    console.error("Gemini vision error:", error);
     return res.status(500).json({
       error: error.message || "Error processing image",
       tickers: [],
