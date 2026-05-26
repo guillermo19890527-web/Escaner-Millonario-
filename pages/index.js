@@ -420,4 +420,371 @@ function StockRow({ stock, quote, onEdit, onDelete }) {
   const vd         = verdictStyle(score);
   const price      = quote?.price ?? parseFloat(stock.precio) ?? 0;
   const prevClose  = quote?.prevClose ?? price;
-  const changePct  = pr
+  const changePct  = prevClose ? ((price - prevClose) / prevClose * 100) : 0;
+  const changeUp   = changePct >= 0;
+  const volRatio   = quote?.avgVolume ? (quote.volume / quote.avgVolume).toFixed(1) : null;
+  const volAlert   = quote?.avgVolume && stock.alertaVol
+    ? quote.volume >= quote.avgVolume * parseFloat(stock.alertaVol)
+    : false;
+  const priceAlertHigh = stock.alertaAlta && price >= parseFloat(stock.alertaAlta);
+  const priceAlertLow  = stock.alertaBaja && price <= parseFloat(stock.alertaBaja);
+  const isPreMarket    = quote?.marketState === "PRE";
+  const prePrice       = quote?.preMarketPrice;
+  const bars = Array(8).fill(0).map((_, i) => {
+    try { return FILTERS[i].check(stock) ? 1 : 0; } catch { return 0; }
+  });
+
+  return (
+    <div style={{
+      background: "rgba(13,21,38,0.85)", border: `1px solid ${vd.glow}22`,
+      borderLeft: `3px solid ${vd.color}`, borderRadius: 10,
+      padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10,
+      position: "relative", overflow: "hidden",
+    }}>
+      {(volAlert || priceAlertHigh || priceAlertLow) && (
+        <div style={{
+          position: "absolute", top: 0, right: 0, background: "#ef4444", color: "#fff",
+          fontSize: 10, fontFamily: "monospace", padding: "3px 10px",
+          borderBottomLeftRadius: 8, letterSpacing: 1, animation: "pulse 1s infinite",
+        }}>
+          🔔 {volAlert ? "VOL!" : ""} {priceAlertHigh ? "↑PRECIO" : ""} {priceAlertLow ? "↓PRECIO" : ""}
+        </div>
+      )}
+
+      <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+        <div style={{ minWidth: 80 }}>
+          <div style={{ fontSize: 20, fontWeight: 700, fontFamily: "monospace", color: "#f8fafc", letterSpacing: 2 }}>{stock.ticker}</div>
+          <div style={{ fontSize: 10, color: "#475569", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 100 }}>
+            {stock.nombre || quote?.shortName || ""}
+          </div>
+        </div>
+
+        <div style={{ textAlign: "right" }}>
+          <div style={{ fontSize: 22, fontWeight: 700, color: "#f8fafc", fontFamily: "monospace" }}>${price.toFixed(2)}</div>
+          <div style={{ fontSize: 12, color: changeUp ? "#22c55e" : "#ef4444", fontFamily: "monospace" }}>
+            {changeUp ? "▲" : "▼"} {Math.abs(changePct).toFixed(2)}%
+          </div>
+        </div>
+
+        {isPreMarket && prePrice && (
+          <div style={{ background: "rgba(251,191,36,0.15)", border: "1px solid rgba(251,191,36,0.4)", borderRadius: 6, padding: "4px 10px" }}>
+            <div style={{ fontSize: 9, color: "#fbbf24", fontFamily: "monospace", letterSpacing: 1 }}>PREMARKET</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "#fbbf24", fontFamily: "monospace" }}>${prePrice.toFixed(2)}</div>
+          </div>
+        )}
+
+        <div style={{ flex: 1, minWidth: 100 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+            <span style={{ fontSize: 10, color: "#475569", fontFamily: "monospace" }}>VOL</span>
+            {volRatio && (
+              <span style={{ fontSize: 11, fontFamily: "monospace", fontWeight: 700, color: parseFloat(volRatio) >= 2 ? "#22c55e" : parseFloat(volRatio) >= 1 ? "#f59e0b" : "#ef4444" }}>
+                {volRatio}x {parseFloat(volRatio) >= 3 ? "🔥" : parseFloat(volRatio) >= 2 ? "⚡" : ""}
+              </span>
+            )}
+          </div>
+          <div style={{ height: 6, background: "rgba(51,65,85,0.6)", borderRadius: 3, overflow: "hidden" }}>
+            <div style={{
+              height: "100%", borderRadius: 3, transition: "width 0.8s ease",
+              width: volRatio ? `${Math.min(parseFloat(volRatio) / 5 * 100, 100)}%` : "0%",
+              background: parseFloat(volRatio) >= 2
+                ? "linear-gradient(90deg,#22c55e,#16a34a)"
+                : parseFloat(volRatio) >= 1
+                  ? "linear-gradient(90deg,#f59e0b,#d97706)"
+                  : "#ef4444",
+              boxShadow: parseFloat(volRatio) >= 2 ? "0 0 8px #22c55e" : "none",
+            }} />
+          </div>
+          {quote?.volume && (
+            <div style={{ fontSize: 10, color: "#334155", marginTop: 2, fontFamily: "monospace" }}>
+              {(quote.volume / 1000).toFixed(0)}K hoy
+            </div>
+          )}
+        </div>
+
+        <div style={{ background: `${vd.glow}20`, border: `1px solid ${vd.glow}50`, borderRadius: 8, padding: "6px 12px", textAlign: "center", minWidth: 60 }}>
+          <div style={{ fontSize: 20, fontWeight: 700, color: vd.color, fontFamily: "monospace" }}>{score}/8</div>
+          <div style={{ fontSize: 9, color: vd.color, fontFamily: "monospace", letterSpacing: 1 }}>{vd.label}</div>
+        </div>
+      </div>
+
+      <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+        {bars.map((pass, i) => (
+          <div key={i} title={FILTERS[i].label} style={{
+            display: "flex", alignItems: "center", gap: 3,
+            background: pass ? "rgba(34,197,94,0.12)" : "rgba(239,68,68,0.08)",
+            border: `1px solid ${pass ? "rgba(34,197,94,0.3)" : "rgba(239,68,68,0.2)"}`,
+            borderRadius: 4, padding: "2px 6px", fontSize: 9, fontFamily: "monospace",
+            color: pass ? "#86efac" : "#fca5a5",
+          }}>
+            {FILTERS[i].icon} {pass ? "✓" : "✗"}
+          </div>
+        ))}
+      </div>
+
+      {stock.notas && (
+        <div style={{ fontSize: 11, color: "#64748b", fontStyle: "italic", borderTop: "1px solid rgba(51,65,85,0.4)", paddingTop: 8 }}>
+          📝 {stock.notas}
+        </div>
+      )}
+
+      <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+        <button onClick={() => onEdit(stock)} style={btnSm("#64748b")}>✏️ Editar</button>
+        <button onClick={() => onDelete(stock.id)} style={btnSm("#ef4444")}>🗑️ Borrar</button>
+      </div>
+    </div>
+  );
+}
+
+export default function Home() {
+  const [watchlist, setWatchlist]   = useState([]);
+  const [quotes, setQuotes]         = useState({});
+  const [loading, setLoading]       = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [modal, setModal]           = useState(null);
+  const [showScanner, setShowScanner] = useState(false);
+  const [lastUpdate, setLastUpdate] = useState(null);
+  const [filter, setFilter]         = useState("all");
+  const [alertsFired, setAlertsFired] = useState({});
+  const intervalRef = useRef(null);
+
+  useEffect(() => {
+    const list = loadWatchlist();
+    setWatchlist(list);
+    setLoading(false);
+    if (list.length > 0) fetchAllQuotes(list);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const fetchAllQuotes = useCallback(async (list) => {
+    if (!list || list.length === 0) return;
+    setRefreshing(true);
+    const results = {};
+    const alerts  = {};
+    await Promise.all(list.map(async (s) => {
+      const q = await fetchQuote(s.ticker);
+      if (q) {
+        results[s.ticker] = q;
+        const volRatio = q.avgVolume ? q.volume / q.avgVolume : 0;
+        alerts[s.ticker] = {
+          vol:  volRatio >= (parseFloat(s.alertaVol) || 2),
+          high: s.alertaAlta && q.price >= parseFloat(s.alertaAlta),
+          low:  s.alertaBaja && q.price <= parseFloat(s.alertaBaja),
+        };
+      }
+    }));
+    setQuotes(results);
+    setAlertsFired(alerts);
+    setLastUpdate(new Date());
+    setRefreshing(false);
+  }, []);
+
+  useEffect(() => {
+    if (watchlist.length === 0) return;
+    intervalRef.current = setInterval(() => fetchAllQuotes(watchlist), 60000);
+    return () => clearInterval(intervalRef.current);
+  }, [watchlist, fetchAllQuotes]);
+
+  const handleSave = (stock) => {
+    let updated;
+    if (watchlist.find(s => s.id === stock.id)) {
+      updated = watchlist.map(s => s.id === stock.id ? stock : s);
+    } else {
+      updated = [...watchlist, stock];
+    }
+    setWatchlist(updated);
+    saveWatchlist(updated);
+    setModal(null);
+    fetchAllQuotes(updated);
+  };
+
+  const handleDelete = (id) => {
+    const updated = watchlist.filter(s => s.id !== id);
+    setWatchlist(updated);
+    saveWatchlist(updated);
+  };
+
+  const handleAddFromImage = (tickers) => {
+    const newStocks = tickers.map(t => ({
+      id: crypto.randomUUID(),
+      ticker: t.ticker,
+      nombre: t.name || "",
+      precio: t.price || "",
+      recomendacion: "", target: "", capitalizacion: "small",
+      acciones: "", volumen: "", volatilidad: "", institucional: "",
+      notas: "📸 Agregado vía escáner de imagen",
+      alertaAlta: "", alertaBaja: "", alertaVol: "2",
+    }));
+    const updated = [...watchlist, ...newStocks];
+    setWatchlist(updated);
+    saveWatchlist(updated);
+    fetchAllQuotes(updated);
+  };
+
+  const filtered = watchlist.filter(s => {
+    if (filter === "all") return true;
+    const sc = scoreStock(s);
+    if (filter === "joya")    return sc === 8;
+    if (filter === "fuerte")  return sc >= 6 && sc < 8;
+    if (filter === "revisar") return sc >= 4 && sc < 6;
+    if (filter === "debil")   return sc < 4;
+    return true;
+  }).sort((a, b) => scoreStock(b) - scoreStock(a));
+
+  const alertCount = Object.values(alertsFired).filter(a => a.vol || a.high || a.low).length;
+  const avgScore   = watchlist.length
+    ? (watchlist.reduce((s, x) => s + scoreStock(x), 0) / watchlist.length).toFixed(1)
+    : "–";
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#070d1a", color: "#e2e8f0", fontFamily: "'Georgia', serif", position: "relative" }}>
+      <style>{`
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.6} }
+        @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0a0f1e; }
+        ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 3px; }
+        input[type=number]::-webkit-inner-spin-button { opacity: 0.4; }
+        select option { background: #0d1526; }
+      `}</style>
+
+      <div style={{
+        position: "fixed", inset: 0, zIndex: 0, pointerEvents: "none",
+        backgroundImage: `linear-gradient(rgba(34,197,94,0.03) 1px, transparent 1px),linear-gradient(90deg, rgba(34,197,94,0.03) 1px, transparent 1px)`,
+        backgroundSize: "32px 32px",
+      }} />
+
+      <div style={{
+        position: "sticky", top: 0, zIndex: 50,
+        background: "rgba(7,13,26,0.95)", borderBottom: "1px solid rgba(34,197,94,0.15)",
+        backdropFilter: "blur(12px)", padding: "0 20px",
+      }}>
+        <div style={{ maxWidth: 860, margin: "0 auto", display: "flex", alignItems: "center", gap: 12, height: 60, flexWrap: "wrap" }}>
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#f8fafc", letterSpacing: 1 }}>💎 Millón Scanner</div>
+            <div style={{ fontSize: 10, color: "#334155", fontFamily: "monospace", letterSpacing: 2 }}>METODOLOGÍA DEL MILLÓN · YOEL SARDIÑAS</div>
+          </div>
+          <div style={{ flex: 1 }} />
+          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            {alertCount > 0 && (
+              <div style={{ background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.4)", borderRadius: 6, padding: "4px 10px", fontSize: 12, color: "#ef4444", fontFamily: "monospace", animation: "pulse 1s infinite" }}>
+                🔔 {alertCount} alerta{alertCount > 1 ? "s" : ""}
+              </div>
+            )}
+            <div style={{ textAlign: "center" }}>
+              <div style={{ fontSize: 18, fontWeight: 700, color: "#22c55e", fontFamily: "monospace" }}>{watchlist.length}</div>
+              <div style={{ fontSize: 9, color: "#334155", fontFamily: "monospace" }}>ACCIONES</div>
+            </div>
+            <div style={{ textAlign: "center" }}>
+              <div style={{ fontSize: 18, fontWeight: 700, color: "#84cc16", fontFamily: "monospace" }}>{avgScore}</div>
+              <div style={{ fontSize: 9, color: "#334155", fontFamily: "monospace" }}>SCORE</div>
+            </div>
+            <button
+              onClick={() => fetchAllQuotes(watchlist)}
+              disabled={refreshing}
+              style={{
+                background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.3)",
+                borderRadius: 8, padding: "7px 11px", color: "#22c55e",
+                cursor: refreshing ? "wait" : "pointer", fontSize: 14,
+                animation: refreshing ? "spin 1s linear infinite" : "none", display: "inline-block",
+              }}
+            >⟳</button>
+            <button onClick={() => setShowScanner(true)} style={{
+              background: "rgba(139,92,246,0.15)", border: "1px solid rgba(139,92,246,0.4)",
+              borderRadius: 8, padding: "7px 11px", color: "#a78bfa",
+              cursor: "pointer", fontSize: 14, whiteSpace: "nowrap",
+            }}>📸</button>
+            <button onClick={() => setModal("add")} style={{
+              background: "linear-gradient(135deg,#22c55e,#16a34a)", border: "none",
+              borderRadius: 8, padding: "8px 14px", color: "#0a0f1e",
+              fontWeight: 700, cursor: "pointer", fontSize: 13, whiteSpace: "nowrap",
+            }}>+ Agregar</button>
+          </div>
+        </div>
+        {lastUpdate && (
+          <div style={{ maxWidth: 860, margin: "0 auto", paddingBottom: 6 }}>
+            <span style={{ fontSize: 10, color: "#1e293b", fontFamily: "monospace" }}>
+              Actualizado: {lastUpdate.toLocaleTimeString()} · Auto-refresh 60s
+            </span>
+          </div>
+        )}
+      </div>
+
+      <div style={{ maxWidth: 860, margin: "0 auto", padding: "20px 16px 80px", position: "relative", zIndex: 1 }}>
+        {watchlist.length > 0 && (
+          <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
+            {[
+              { k: "all",     label: `Todas (${watchlist.length})`, color: "#64748b" },
+              { k: "joya",    label: "💎 Joya",    color: "#22c55e" },
+              { k: "fuerte",  label: "🚀 Fuerte",  color: "#84cc16" },
+              { k: "revisar", label: "⚠️ Revisar", color: "#f59e0b" },
+              { k: "debil",   label: "❌ Débil",   color: "#ef4444" },
+            ].map(t => (
+              <button key={t.k} onClick={() => setFilter(t.k)} style={{
+                background: filter === t.k ? `${t.color}20` : "transparent",
+                border: `1px solid ${filter === t.k ? t.color : "rgba(51,65,85,0.5)"}`,
+                borderRadius: 20, padding: "5px 14px",
+                color: filter === t.k ? t.color : "#475569",
+                fontSize: 12, cursor: "pointer", fontFamily: "monospace", transition: "all 0.2s",
+              }}>{t.label}</button>
+            ))}
+          </div>
+        )}
+
+        {loading ? (
+          <div style={{ textAlign: "center", padding: 80, color: "#334155" }}>
+            <div style={{ fontSize: 40, marginBottom: 16, animation: "spin 1s linear infinite", display: "inline-block" }}>⟳</div>
+            <div style={{ fontFamily: "monospace" }}>Cargando watchlist...</div>
+          </div>
+        ) : watchlist.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "80px 20px", border: "2px dashed rgba(34,197,94,0.15)", borderRadius: 16, color: "#1e293b" }}>
+            <div style={{ fontSize: 48, marginBottom: 16 }}>📡</div>
+            <div style={{ fontSize: 20, color: "#334155", marginBottom: 8, fontFamily: "Georgia,serif" }}>Tu scanner está vacío</div>
+            <div style={{ fontSize: 13, color: "#1e293b", marginBottom: 24, fontFamily: "monospace" }}>
+              Agrega acciones manualmente o usa el escáner 📸 para detectar desde una imagen
+            </div>
+            <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
+              <button onClick={() => setModal("add")} style={{
+                background: "linear-gradient(135deg,#22c55e,#16a34a)", border: "none",
+                borderRadius: 10, padding: "12px 24px", color: "#0a0f1e", fontWeight: 700, cursor: "pointer", fontSize: 14,
+              }}>+ Agregar acción</button>
+              <button onClick={() => setShowScanner(true)} style={{
+                background: "rgba(139,92,246,0.15)", border: "1px solid rgba(139,92,246,0.4)",
+                borderRadius: 10, padding: "12px 24px", color: "#a78bfa", cursor: "pointer", fontSize: 14, fontWeight: 700,
+              }}>📸 Escanear imagen</button>
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {filtered.map(s => (
+              <StockRow
+                key={s.id}
+                stock={s}
+                quote={quotes[s.ticker]}
+                onEdit={setModal}
+                onDelete={handleDelete}
+              />
+            ))}
+            {filtered.length === 0 && (
+              <div style={{ textAlign: "center", padding: 40, color: "#334155", fontFamily: "monospace" }}>
+                No hay acciones en esta categoría
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {modal && (
+        <Modal
+          stock={modal === "add" ? null : modal}
+          onSave={handleSave}
+          onClose={() => setModal(null)}
+        />
+      )}
+      {showScanner && (
+        <ImageScanner
+          onAddTickers={handleAddFromImage}
+          onClose={() => setShowScanner(false)}
+        />
+      )}
+    </div>
+  );
+                }
